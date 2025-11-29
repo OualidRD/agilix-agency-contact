@@ -163,6 +163,55 @@
   margin: 0 0 0.75rem 0;
 }
 
+.viewedContactsList {
+  margin: 1rem 0;
+  padding: 0.75rem;
+  background-color: rgba(255, 193, 7, 0.1);
+  border-radius: 0.25rem;
+}
+
+.viewedContactsList h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.85rem;
+  color: #856404;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.contactsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.contactItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  background-color: white;
+  border-radius: 0.25rem;
+  border-left: 3px solid #ffc107;
+  font-size: 0.85rem;
+}
+
+.contactName {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.contactEmail {
+  font-size: 0.8rem;
+  color: #666;
+  text-decoration: none;
+}
+
 .upgradeLink {
   display: inline-block;
   padding: 0.5rem 1rem;

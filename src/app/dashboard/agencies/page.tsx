@@ -9,26 +9,28 @@ interface Agency {
   [key: string]: string;
 }
 
-// Columns to display in table
+// ════════════════════════════════════════════════════════════════
+// AGENCIES: Show key info in list, extended info in modal
+// ════════════════════════════════════════════════════════════════
+
+// Columns to display in TABLE (key information)
 const DISPLAY_COLUMNS = ['name', 'state', 'type', 'population', 'website', 'county'];
 
-// Columns to exclude from all views
+// Columns to exclude from ALL views (system/internal fields)
 const EXCLUDE_COLUMNS = [
-  'total_schools',
-  'total_students',
-  'mailing_address',
-  'grade_span',
-  'locale',
-  'csa_cbsa',
-  'domain_name',
-  'physical_address',
-  'phone',
-  'status',
-  'student_teacher_ratio',
-  'supervisory_union',
-  'created_at',
-  'updated_at',
-  'id',
+  'total_schools',         // Education-only metric
+  'total_students',        // Education-only metric
+  'mailing_address',       // Internal
+  'grade_span',            // Education-only
+  'locale',                // Geographic code (not needed)
+  'csa_cbsa',              // Metropolitan area code
+  'domain_name',           // IT system internal
+  'status',                // System status flag
+  'student_teacher_ratio', // Education-only
+  'supervisory_union',     // Education-only
+  'created_at',            // System metadata
+  'updated_at',            // System metadata
+  'id',                    // System ID
 ];
 
 // Columns that can be used for filtering

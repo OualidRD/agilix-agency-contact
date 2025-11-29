@@ -10,20 +10,32 @@ interface Contact {
   [key: string]: string;
 }
 
+interface Agency {
+  [key: string]: string;
+}
+
 const DAILY_LIMIT = 50;
 const STORAGE_KEY = 'contacts_view_count';
 const CONTACTS_CACHE_KEY = 'contacts_cache';
 
-// Columns to display in table
-const DISPLAY_COLUMNS = ['first_name', 'last_name', 'email', 'phone', 'title'];
+// ════════════════════════════════════════════════════════════════
+// CONTACTS: Show basic info in list, detailed info in modal
+// ════════════════════════════════════════════════════════════════
 
-// Columns to exclude from modal
+// Columns to display in TABLE (basic info - can see freely, non-sensitive)
+const DISPLAY_COLUMNS = ['first_name', 'last_name', 'title', 'department'];
+
+// Columns to EXCLUDE from MODAL (system/metadata fields only)
 const EXCLUDE_COLUMNS = [
-  'created_at',
-  'updated_at',
-  'email_type',
-  'contact_form_url',
+  'created_at',      // System timestamp
+  'updated_at',      // System timestamp
+  'email_type',      // Internal classification
+  'id',              // System ID
 ];
+
+// Columns that can be used for filtering
+const FILTER_COLUMNS = ['agency_id', 'department'];
+const ITEMS_PER_PAGE = 10;
 
 // Get today's date in UTC format
 const getTodayUTC = (): string => {
@@ -101,65 +113,114 @@ const getTimeUntilReset = (): string => {
   return `${hours}h ${minutes}m`;
 };
 
-const ITEMS_PER_PAGE = 10;
+// Add viewed contact to localStorage
+const addViewedContact = (userId: string, contact: Contact): void => {
+  const today = getTodayUTC();
+  const key = `viewed_contacts_${userId}_${today}`;
+  const stored = localStorage.getItem(key);
+  const viewedContacts = stored ? JSON.parse(stored) : [];
+  
+  // Check if already in list to avoid duplicates
+  const exists = viewedContacts.some(
+    (c: Contact) => c.id === contact.id
+  );
+  
+  if (!exists) {
+    viewedContacts.push(contact);
+    localStorage.setItem(key, JSON.stringify(viewedContacts));
+  }
+};
 
 export default function ContactsPage() {
   const router = useRouter();
   const { user } = useUser();
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [agencies, setAgencies] = useState<Agency[]>([]);
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showLimitPopup, setShowLimitPopup] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState<{ [key: string]: string }>({
+    agency_id: '',
+    department: '',
+  });
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [filterOptions, setFilterOptions] = useState<{ [key: string]: string[] }>({
+    agency_id: [],
+    department: [],
+  });
+  const [agencyMap, setAgencyMap] = useState<{ [key: string]: string }>({});
+  const [viewedContactIds, setViewedContactIds] = useState<Set<string>>(new Set());
+  const [showViewedOnly, setShowViewedOnly] = useState(false);
+
+  // Get list of viewed contact IDs
+  const getViewedContactIds = (userId: string): Set<string> => {
+    const today = getTodayUTC();
+    const key = `viewed_contacts_${userId}_${today}`;
+    const stored = localStorage.getItem(key);
+    const viewedContacts = stored ? JSON.parse(stored) : [];
+    return new Set(viewedContacts.map((c: Contact) => c.id));
+  };
 
   useEffect(() => {
     if (!user) return;
 
     const today = getTodayUTC();
     
-    // Check if cache exists for today
-    let cachedContacts = loadCachedContacts(user.id, today);
-    
-    // SAFETY: If cache has more than 50, trim it to exactly 50
-    if (cachedContacts.length > DAILY_LIMIT) {
-      cachedContacts = cachedContacts.slice(0, DAILY_LIMIT);
-      saveContactsToCache(user.id, today, cachedContacts);
-    }
-    
-    // Also clean up any view count that's over 50
-    const currentCount = getCurrentViewCount(user.id);
-    if (currentCount > DAILY_LIMIT) {
-      const storageKey = getStorageKey(user.id, today);
-      localStorage.setItem(storageKey, DAILY_LIMIT.toString());
-    }
-    
-    if (cachedContacts.length > 0) {
-      // ✅ Cache exists → reuse it
-      setContacts(cachedContacts);
-      setFilteredContacts(cachedContacts);
-      setLoading(false);
-      return;
-    }
-
-    // ✅ First time today → fetch exactly 50 contacts and cache them
-    const fetchContacts = async () => {
+    // Fetch ALL contacts and agencies
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/contacts');
-        if (!response.ok) throw new Error('Failed to fetch contacts');
-        let data = await response.json();
+        const contactsResponse = await fetch('/api/contacts');
+        if (!contactsResponse.ok) throw new Error('Failed to fetch contacts');
+        const contactsData = await contactsResponse.json();
 
-        // Take exactly 50 contacts
-        const contactsToCache = data.slice(0, DAILY_LIMIT);
+        const agenciesResponse = await fetch('/api/agencies');
+        if (!agenciesResponse.ok) throw new Error('Failed to fetch agencies');
+        const agenciesData = await agenciesResponse.json();
 
-        // Save to cache once
-        saveContactsToCache(user.id, today, contactsToCache);
+        // Build agency map (id -> name)
+        const map: { [key: string]: string } = {};
+        agenciesData.forEach((agency: Agency) => {
+          map[agency.id] = agency.name;
+        });
+        setAgencyMap(map);
 
-        // Set state with exactly 50 contacts
-        setContacts(contactsToCache);
-        setFilteredContacts(contactsToCache);
+        // Extract unique agency names and departments for filter dropdowns
+        const options: { [key: string]: Set<string> } = {
+          agency_id: new Set(),
+          department: new Set(),
+        };
+
+        contactsData.forEach((contact: Contact) => {
+          if (contact.agency_id && map[contact.agency_id]) {
+            options.agency_id.add(map[contact.agency_id]);
+          }
+          if (contact.department) {
+            options.department.add(contact.department);
+          }
+        });
+
+        setFilterOptions({
+          agency_id: Array.from(options.agency_id).filter(Boolean).sort(),
+          department: Array.from(options.department).filter(Boolean).sort(),
+        });
+
+        setContacts(contactsData);
+        setFilteredContacts(contactsData);
+        setAgencies(agenciesData);
+
+        // Get viewed contact IDs and update state
+        const viewedIds = getViewedContactIds(user.id);
+        setViewedContactIds(viewedIds);
+
+        // Check if limit was already reached
+        const currentCount = getCurrentViewCount(user.id);
+        if (currentCount >= DAILY_LIMIT) {
+          setLimitReached(true);
+        }
         
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
@@ -168,23 +229,57 @@ export default function ContactsPage() {
       }
     };
 
-    fetchContacts();
+    fetchData();
   }, [user]);
 
   // Handle search
   useEffect(() => {
+    let filtered = contacts;
+
+    // Apply viewed-only filter
+    if (showViewedOnly && limitReached) {
+      filtered = filtered.filter((contact) => viewedContactIds.has(contact.id));
+    }
+
+    // Apply text search
     if (searchTerm) {
-      const filtered = contacts.filter((contact) =>
+      filtered = filtered.filter((contact) =>
         Object.values(contact).some((value) =>
           value.toLowerCase().includes(searchTerm.toLowerCase())
         )
       );
-      setFilteredContacts(filtered);
-    } else {
-      setFilteredContacts(contacts);
     }
+
+    // Apply agency filter
+    if (filters.agency_id) {
+      filtered = filtered.filter((contact) => {
+        const agencyName = agencyMap[contact.agency_id];
+        return agencyName === filters.agency_id;
+      });
+    }
+
+    // Apply department filter
+    if (filters.department) {
+      filtered = filtered.filter((contact) => contact.department === filters.department);
+    }
+
+    setFilteredContacts(filtered);
     setCurrentPage(1);
-  }, [searchTerm, contacts]);
+  }, [searchTerm, contacts, filters, agencyMap, showViewedOnly, limitReached, viewedContactIds]);
+
+  const handleFilterChange = (column: string, value: string) => {
+    setFilters({
+      ...filters,
+      [column]: value,
+    });
+  };
+
+  const clearAllFilters = () => {
+    setFilters({
+      agency_id: '',
+      department: '',
+    });
+  };
 
   // Pagination logic
   const totalPages = Math.ceil(filteredContacts.length / ITEMS_PER_PAGE);
@@ -192,19 +287,54 @@ export default function ContactsPage() {
   const endIdx = startIdx + ITEMS_PER_PAGE;
   const paginatedContacts = filteredContacts.slice(startIdx, endIdx);
 
-  // Handle page change - show popup if trying to go beyond page 5
+  // Handle page change - allow viewing all pages freely
   const handlePageChange = (newPage: number) => {
-    const maxPages = Math.ceil(DAILY_LIMIT / ITEMS_PER_PAGE); // = 5
-    if (newPage > maxPages && user) {
-      // Try to go beyond 50 limit
-      markLimitReached(user.id); // Mark limit as reached in localStorage
-      setShowLimitPopup(true); // Show popup
-      return;
-    }
-    if (newPage < 1) {
-      return; // Don't allow going below page 1
+    if (newPage < 1 || newPage > totalPages) {
+      return; // Only validate bounds, no artificial page limits
     }
     setCurrentPage(newPage);
+  };
+
+  // Handle opening contact details modal
+  const handleViewContact = (contact: Contact) => {
+    if (!user) return;
+
+    const currentCount = getCurrentViewCount(user.id);
+    const today = getTodayUTC();
+    const viewedKey = `viewed_contacts_${user.id}_${today}`;
+    const stored = localStorage.getItem(viewedKey);
+    const viewedContacts = stored ? JSON.parse(stored) : [];
+    
+    // Check if user already viewed this specific contact before
+    const alreadyViewed = viewedContacts.some(
+      (c: Contact) => c.id === contact.id
+    );
+
+    // If user has reached 50 AND hasn't viewed this contact before, block them
+    if (currentCount >= DAILY_LIMIT && !alreadyViewed) {
+      setShowLimitPopup(true);
+      return;
+    }
+
+    // User can view this contact
+    // If they haven't viewed it before, increment counter and add to list
+    if (!alreadyViewed) {
+      const newCount = incrementViewCount(user.id, 1);
+      addViewedContact(user.id, contact);
+      
+      // Update viewed contact IDs
+      const updatedIds = new Set(viewedContactIds);
+      updatedIds.add(contact.id);
+      setViewedContactIds(updatedIds);
+
+      // Check if this view brings them to the limit
+      if (newCount >= DAILY_LIMIT) {
+        setLimitReached(true);
+      }
+    }
+
+    // Allow viewing (either it's a new view or they already viewed it)
+    setSelectedContact(contact);
   };
 
   const getDisplayData = (contact: Contact): { [key: string]: string } => {
@@ -214,6 +344,12 @@ export default function ContactsPage() {
         result[key] = value;
       }
     });
+    
+    // Replace agency_id with agency name
+    if (contact.agency_id && agencyMap[contact.agency_id]) {
+      result['agency'] = agencyMap[contact.agency_id];
+    }
+    
     return result;
   };
 
@@ -245,7 +381,7 @@ export default function ContactsPage() {
                 </>
               ) : (
                 <>
-                  {filteredContacts.length} / {DAILY_LIMIT} daily limit
+                  Total: {filteredContacts.length} contacts
                 </>
               )}
             </p>
@@ -255,15 +391,83 @@ export default function ContactsPage() {
           </button>
         </div>
 
-        <div className={styles.searchBox}>
-          <input
-            type="text"
-            placeholder="Search contacts..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className={styles.searchInput}
-          />
-        </div>
+        {/* Filters and Search Section */}
+        {!loading && contacts.length > 0 && (
+          <div className={styles.filtersContainer}>
+            <div className={styles.filtersWrapper}>
+              {/* Left Section: Search */}
+              <div className={styles.searchSection}>
+                <div className={styles.searchBox}>
+                  <input
+                    type="text"
+                    placeholder="Search contacts..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className={styles.searchInput}
+                  />
+                </div>
+              </div>
+
+              {/* Right Section: Filters */}
+              <div className={styles.filtersSection}>
+                <div className={styles.filtersGrid}>
+                  <div className={styles.filterGroup}>
+                    <label htmlFor="filter-agency" className={styles.filterFieldLabel}>
+                      Agency
+                    </label>
+                    <select
+                      id="filter-agency"
+                      value={filters.agency_id}
+                      onChange={(e) => handleFilterChange('agency_id', e.target.value)}
+                      className={styles.filterSelect}
+                    >
+                      <option value="">All</option>
+                      {filterOptions.agency_id.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className={styles.filterGroup}>
+                    <label htmlFor="filter-department" className={styles.filterFieldLabel}>
+                      Department
+                    </label>
+                    <select
+                      id="filter-department"
+                      value={filters.department}
+                      onChange={(e) => handleFilterChange('department', e.target.value)}
+                      className={styles.filterSelect}
+                    >
+                      <option value="">All</option>
+                      {filterOptions.department.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {limitReached && (
+                    <button
+                      onClick={() => setShowViewedOnly(!showViewedOnly)}
+                      className={`${styles.viewedOnlyBtn} ${showViewedOnly ? styles.active : ''}`}
+                    >
+                      {showViewedOnly ? '✓ ' : ''}Viewed Only
+                    </button>
+                  )}
+                  {(Object.values(filters).some((v) => v) || showViewedOnly) && (
+                    <button onClick={() => {
+                      clearAllFilters();
+                      setShowViewedOnly(false);
+                    }} className={styles.clearFiltersBtn}>
+                      Clear Filters
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className={styles.loadingContainer}>
@@ -285,32 +489,33 @@ export default function ContactsPage() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedContacts.map((contact, idx) => (
-                  <tr key={idx}>
-                    {DISPLAY_COLUMNS.map((col) => (
-                      <td key={col}>
-                        {col === 'email' && contact[col] && contact[col] !== 'N/A' ? (
-                          <a 
-                            href={`mailto:${contact[col]}`}
-                            className={styles.tableLink}
-                          >
-                            {contact[col]}
-                          </a>
-                        ) : (
-                          contact[col] || 'N/A'
-                        )}
+                {paginatedContacts.map((contact, idx) => {
+                  const isViewed = viewedContactIds.has(contact.id);
+                  const isNewAndLimited = limitReached && !isViewed;
+                  
+                  return (
+                    <tr 
+                      key={idx} 
+                      className={`${isNewAndLimited ? styles.lockedRow : isViewed ? styles.viewedRow : ''}`}
+                    >
+                      {DISPLAY_COLUMNS.map((col) => (
+                        <td key={col}>
+                          {contact[col] || 'N/A'}
+                        </td>
+                      ))}
+                      <td>
+                        <button
+                          onClick={() => handleViewContact(contact)}
+                          className={`${styles.viewButton} ${isNewAndLimited ? styles.lockedButton : ''}`}
+                          disabled={isNewAndLimited}
+                          title={isNewAndLimited ? 'Daily limit reached. Upgrade to view.' : 'View contact details'}
+                        >
+                          {isNewAndLimited ? '🔒 Locked' : isViewed ? '👁️ Viewed' : 'View'}
+                        </button>
                       </td>
-                    ))}
-                    <td>
-                      <button
-                        onClick={() => setSelectedContact(contact)}
-                        className={styles.viewButton}
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {totalPages > 1 && (
@@ -322,15 +527,13 @@ export default function ContactsPage() {
                 >
                   ← Previous
                 </button>
-                {/* <div className={styles.pageInfo}>
+                <div className={styles.pageInfo}>
                   Page <span className={styles.currentPage}>{currentPage}</span> of{' '}
                   <span className={styles.totalPages}>{totalPages}</span>
-                  {currentPage === totalPages && totalPages === Math.ceil(DAILY_LIMIT / ITEMS_PER_PAGE) && (
-                    <span className={styles.limitReachedBadge}>← Daily Limit</span>
-                  )}
-                </div> */}
+                </div>
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
                   className={styles.backButton}
                 >
                   Next →
@@ -403,6 +606,25 @@ export default function ContactsPage() {
                 className={styles.limitPopupButtonSecondary}
               >
                 Close
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Limit Reached Reminder Banner */}
+        {limitReached && !showLimitPopup && (
+          <div className={styles.limitReminderBanner}>
+            <div className={styles.reminderContent}>
+              <span className={styles.reminderIcon}>⚠️</span>
+              <div className={styles.reminderText}>
+                <p className={styles.reminderTitle}>You've reached your daily limit of {DAILY_LIMIT} contacts</p>
+                <p className={styles.reminderSubtext}>Your limit resets in {getTimeUntilReset()}</p>
+              </div>
+              <button
+                onClick={() => router.push('/upgrade')}
+                className={styles.reminderUpgradeBtn}
+              >
+                Upgrade Now
               </button>
             </div>
           </div>

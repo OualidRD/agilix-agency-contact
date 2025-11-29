@@ -160,11 +160,10 @@
 
 /* Search Box */
 .searchBox {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0;
 }
 
 .searchInput {
-  max-width: 400px;
   width: 100%;
   padding: 0.75rem 1rem;
   border: 1px solid #e8e8e8;
@@ -180,6 +179,128 @@
   border-color: #0066cc;
   box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
   background-color: white;
+}
+
+/* Filters Section */
+.filtersContainer {
+  background-color: white;
+  border: 1px solid #e8e8e8;
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.filtersWrapper {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.searchSection {
+  flex: 0 1 400px;
+  min-width: 200px;
+}
+
+.filtersSection {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.filterLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.filtersGrid {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.filterFieldLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.filterSelect {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #e8e8e8;
+  border-radius: 0.25rem;
+  font-size: 0.9rem;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.filterSelect:focus {
+  outline: none;
+  border-color: #0066cc;
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+.filterSelect:hover {
+  border-color: #bbb;
+}
+
+.clearFiltersBtn {
+  padding: 0.65rem 1rem;
+  background-color: #f0f0f0;
+  border: 1px solid #e8e8e8;
+  border-radius: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #555;
+  white-space: nowrap;
+}
+
+.clearFiltersBtn:hover {
+  background-color: #e8e8e8;
+  border-color: #d0d0d0;
+  color: #1a1a1a;
+}
+
+.viewedOnlyBtn {
+  padding: 0.65rem 1rem;
+  background-color: white;
+  border: 2px solid #4ade80;
+  border-radius: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #22c55e;
+  white-space: nowrap;
+}
+
+.viewedOnlyBtn:hover {
+  background-color: #f0fdf4;
+  border-color: #22c55e;
+  color: #15803d;
+}
+
+.viewedOnlyBtn.active {
+  background-color: #22c55e;
+  border-color: #22c55e;
+  color: white;
 }
 
 /* List Container */
@@ -270,6 +391,26 @@
   border-bottom: none;
 }
 
+/* Viewed contact row - subtle green tint */
+.viewedRow {
+  background-color: #f0fdf4;
+}
+
+.viewedRow:hover {
+  background-color: #e8fcf5;
+}
+
+/* Locked contact row - subtle grey tint */
+.lockedRow {
+  background-color: #f5f5f5;
+  opacity: 0.75;
+}
+
+.lockedRow:hover {
+  background-color: #f0f0f0;
+  opacity: 0.75;
+}
+
 .viewButton {
   padding: 0.35rem 0.75rem;
   background-color: #1a1a1a;
@@ -283,10 +424,29 @@
   white-space: nowrap;
 }
 
-.viewButton:hover {
+.viewButton:hover:not(:disabled) {
   background-color: #0066cc;
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.viewButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.viewButton.lockedButton {
+  background-color: #ccc;
+  color: #666;
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.viewButton.lockedButton:hover {
+  background-color: #ccc;
+  transform: none;
+  box-shadow: none;
 }
 
 .tableLink {
@@ -641,6 +801,67 @@
 .limitPopupButtonSecondary:hover {
   border-color: #0066cc;
   background-color: #f0f7ff;
+}
+
+/* Limit Reminder Banner */
+.limitReminderBanner {
+  background: linear-gradient(135deg, #fff5f5 0%, #fff0f0 100%);
+  border: 1px solid #ffcccb;
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(255, 0, 0, 0.08);
+}
+
+.reminderContent {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.reminderIcon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.reminderText {
+  flex: 1;
+  min-width: 200px;
+}
+
+.reminderTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #d32f2f;
+}
+
+.reminderSubtext {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.85rem;
+  color: #c62828;
+  opacity: 0.9;
+}
+
+.reminderUpgradeBtn {
+  padding: 0.6rem 1.2rem;
+  background-color: #d32f2f;
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.reminderUpgradeBtn:hover {
+  background-color: #b71c1c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(211, 47, 47, 0.25);
 }
 
 /* Responsive Design */

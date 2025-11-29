@@ -19,6 +19,19 @@ const getStorageKey = (userId: string, date: string): string => {
   return `contacts_view_count_${userId}_${date}`;
 };
 
+// Get storage key for viewed contacts list
+const getViewedContactsKey = (userId: string, date: string): string => {
+  return `viewed_contacts_${userId}_${date}`;
+};
+
+// Get all viewed contacts for today
+const getViewedContacts = (userId: string): any[] => {
+  const today = getTodayUTC();
+  const key = getViewedContactsKey(userId, today);
+  const stored = localStorage.getItem(key);
+  return stored ? JSON.parse(stored) : [];
+};
+
 // Get today's date in UTC format
 const getTodayUTC = (): string => {
   return new Date().toISOString().split('T')[0];
@@ -60,6 +73,7 @@ export default function DashboardHome() {
   const [loading, setLoading] = useState(true);
   const [dailyUsage, setDailyUsage] = useState(0);
   const [limitReached, setLimitReached] = useState(false);
+  const [viewedContacts, setViewedContacts] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -89,18 +103,65 @@ export default function DashboardHome() {
   useEffect(() => {
     if (user) {
       let usage = getCurrentViewCount(user.id);
-      // IMPORTANT: Cap the usage at 50 (in case old data exists)
+      // Cap the usage at 50 (in case old data exists)
       if (usage > DAILY_LIMIT) {
         usage = DAILY_LIMIT;
-        // Also clean up the old view count in localStorage
         const today = getTodayUTC();
         const storageKey = getStorageKey(user.id, today);
         localStorage.setItem(storageKey, DAILY_LIMIT.toString());
       }
-      const reached = isLimitReached(user.id);
       setDailyUsage(usage);
-      setLimitReached(reached);
+      
+      // Load viewed contacts
+      const viewed = getViewedContacts(user.id);
+      setViewedContacts(viewed);
+      
+      // Check if limit reached
+      if (usage >= DAILY_LIMIT) {
+        setLimitReached(true);
+      }
     }
+  }, [user]);
+
+  // Watch for storage changes (when user views contacts on contacts page)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      if (user) {
+        const today = getTodayUTC();
+        const storageKey = getStorageKey(user.id, today);
+        const stored = localStorage.getItem(storageKey);
+        const count = stored ? parseInt(stored, 10) : 0;
+        setDailyUsage(Math.min(count, DAILY_LIMIT));
+      }
+    };
+
+    // Listen for storage changes
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also poll every second to catch changes in same window
+    const interval = setInterval(() => {
+      if (user) {
+        const today = getTodayUTC();
+        const storageKey = getStorageKey(user.id, today);
+        const stored = localStorage.getItem(storageKey);
+        const count = stored ? parseInt(stored, 10) : 0;
+        const finalCount = Math.min(count, DAILY_LIMIT);
+        setDailyUsage(finalCount);
+        
+        // Update viewed contacts and limit status
+        const viewed = getViewedContacts(user.id);
+        setViewedContacts(viewed);
+        
+        if (finalCount >= DAILY_LIMIT) {
+          setLimitReached(true);
+        }
+      }
+    }, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
   }, [user]);
 
   const progressPercent = dailyUsage > 0 ? (dailyUsage / DAILY_LIMIT) * 100 : 0;
@@ -199,6 +260,26 @@ export default function DashboardHome() {
                     Daily Limit Reached
                   </strong>
                   <p>Upgrade to unlock unlimited contacts</p>
+                  
+                  {/* Viewed Contacts List */}
+                  {viewedContacts.length > 0 && (
+                    <div className={styles.viewedContactsList}>
+                      <h4>Contacts Viewed Today ({viewedContacts.length})</h4>
+                      <ul className={styles.contactsList}>
+                        {viewedContacts.map((contact, idx) => (
+                          <li key={idx} className={styles.contactItem}>
+                            <span className={styles.contactName}>
+                              {contact.first_name} {contact.last_name}
+                            </span>
+                            {contact.email && (
+                              <span className={styles.contactEmail}>{contact.email}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
                   <Link href="/upgrade" className={styles.upgradeLink}>
                     View Plans →
                   </Link>
