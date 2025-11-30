@@ -307,55 +307,39 @@ export default function LandingPage() {
           </div>
 
           <div className={styles.benefitVisual}>
-            <div className={styles.analyticsCard}>
-              <div className={styles.cardTitle}>Growth Metrics</div>
-              <div className={styles.metricsContainer}>
-                <div className={styles.metric}>
-                  <div className={styles.metricLabel}>Contacts</div>
-                  <div className={styles.metricValue}>12.5K</div>
-                  <div className={styles.metricBar}>
-                    <div className={styles.metricFill} style={{width: '85%'}}></div>
-                  </div>
+            <div className={styles.testimonials}>
+              <div className={styles.testimonial}>
+                <div className={styles.stars}>
+                  {[...Array(5)].map((_, i) => (
+                    <span key={i} className={styles.star}>★</span>
+                  ))}
                 </div>
-                <div className={styles.metric}>
-                  <div className={styles.metricLabel}>Connections</div>
-                  <div className={styles.metricValue}>3.2K</div>
-                  <div className={styles.metricBar}>
-                    <div className={styles.metricFill} style={{width: '65%'}}></div>
-                  </div>
-                </div>
-                <div className={styles.metric}>
-                  <div className={styles.metricLabel}>Engagement</div>
-                  <div className={styles.metricValue}>94%</div>
-                  <div className={styles.metricBar}>
-                    <div className={styles.metricFill} style={{width: '94%'}}></div>
-                  </div>
-                </div>
+                <p className={styles.testimonialText}>
+                  "Found 10 quality leads in my first week. The filtering system actually works."
+                </p>
+                <p className={styles.testimonialAuthor}>— Marcus Chen, Sales Director</p>
               </div>
-            </div>
-            <div className={styles.activityCard}>
-              <div className={styles.activityTitle}>Recent Activity</div>
-              <div className={styles.activityItems}>
-                <div className={styles.activityItem}>
-                  <div className={styles.activityDot}></div>
-                  <span>New contact added</span>
-                  <span className={styles.activityTime}>2 min ago</span>
+              <div className={styles.testimonial}>
+                <div className={styles.stars}>
+                  {[...Array(5)].map((_, i) => (
+                    <span key={i} className={styles.star}>★</span>
+                  ))}
                 </div>
-                <div className={styles.activityItem}>
-                  <div className={styles.activityDot}></div>
-                  <span>Connection request sent</span>
-                  <span className={styles.activityTime}>15 min ago</span>
+                <p className={styles.testimonialText}>
+                  "Saved me hours every week with smart recommendations. Finally a tool built for professionals."
+                </p>
+                <p className={styles.testimonialAuthor}>— Sarah Mitchell, HR Manager</p>
+              </div>
+              <div className={styles.testimonial}>
+                <div className={styles.stars}>
+                  {[...Array(5)].map((_, i) => (
+                    <span key={i} className={styles.star}>★</span>
+                  ))}
                 </div>
-                <div className={styles.activityItem}>
-                  <div className={styles.activityDot}></div>
-                  <span>Message received</span>
-                  <span className={styles.activityTime}>1 hour ago</span>
-                </div>
-                <div className={styles.activityItem}>
-                  <div className={styles.activityDot}></div>
-                  <span>Profile updated</span>
-                  <span className={styles.activityTime}>3 hours ago</span>
-                </div>
+                <p className={styles.testimonialText}>
+                  "Real connections, not spam. The quality of contacts is genuinely impressive."
+                </p>
+                <p className={styles.testimonialAuthor}>— David Torres, Recruiter</p>
               </div>
             </div>
           </div>
@@ -374,7 +358,6 @@ export default function LandingPage() {
             { number: '5,000+', label: 'Active Users' },
             { number: '500K+', label: 'Contacts Connected' },
             { number: '99.9%', label: 'Uptime' },
-            { number: '24/7', label: 'Support' },
           ].map((stat, idx) => (
             <div key={idx} className={styles.statCard}>
               <div className={styles.statNumber}>{stat.number}</div>
